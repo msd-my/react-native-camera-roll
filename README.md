@@ -1,6 +1,9 @@
 # `@react-native-community/cameraroll`
 
-[![CircleCI Status](https://img.shields.io/circleci/project/github/react-native-community/react-native-cameraroll/master.svg)](https://circleci.com/gh/react-native-community/workflows/react-native-cameraroll/tree/master) ![Supports Android and iOS](https://img.shields.io/badge/platforms-android%20|%20ios-lightgrey.svg) ![MIT License](https://img.shields.io/npm/l/@react-native-community/cameraroll.svg)
+[![CircleCI Status][circle-ci-badge]][circle-ci]
+![Supports Android and iOS][supported-os-badge]
+![MIT License][license-badge]
+[![Lean Core Badge][lean-core-badge]][lean-core-issue]
 
 ## Getting started
 
@@ -8,7 +11,7 @@
 
 ### Mostly automatic installation
 
-`$ react-native link @react-native-community/cameraroll && cd ios && pod install`
+`$ react-native link @react-native-community/cameraroll && npx pod-install`
 
 ### Manual installation
 
@@ -59,19 +62,21 @@ The user's permission is required in order to access the Camera Roll on devices 
 If you are targeting devices running iOS 11 or later, you will also need to add the `NSPhotoLibraryAddUsageDescription` key in your `Info.plist`. Use this key to define a string that describes how your app will use this data. By adding this key to your `Info.plist`, you will be able to request write-only access permission from the user. If you try to save to the camera roll without this permission, your app will exit.
 
 On Android permission is required to read the external storage. Add below line to your manifest to request this permission on app install.
+On Android permission is required to write in the external storage when saving to camera roll. Add below line to your manifest to request this permission on app install.
 
 ```
 <manifest>
 ...
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 ...
 <application>
 ```
 
 ### Methods
 
-* [`saveToCameraRoll`](#savetocameraroll)
 * [`save`](#save)
+* [`getAlbums`](#getalbums)
 * [`getPhotos`](#getphotos)
 * [`deletePhotos`](#deletephotos)
 
@@ -83,16 +88,8 @@ On Android permission is required to read the external storage. Add below line t
 
 ### `save()`
 
-Saves the photo or video of a particular type to an album. This function works the same as `saveToCameraRoll`, but it allows to specify a particular album you want to store the asset to.
-
 ```javascript
 CameraRoll.save(tag, { type, album })
-```
-
-### `saveToCameraRoll()`
-
-```javascript
-CameraRoll.saveToCameraRoll(tag, [type]);
 ```
 
 Saves the photo or video to the photo library.
@@ -103,6 +100,9 @@ On iOS, the tag can be any image URI (including local, remote asset-library and 
 
 If the tag has a file extension of .mov or .mp4, it will be inferred as a video. Otherwise it will be treated as a photo. To override the automatic choice, you can pass an optional `type` parameter that must be one of 'photo' or 'video'.
 
+It allows to specify a particular album you want to store the asset to when the param `album` is provided.
+On Android, if no album is provided, DCIM directory is used, otherwise PICTURE or MOVIES directory is used depending on the `type` provided.
+
 Returns a Promise which will resolve with the new URI.
 
 **Parameters:**
@@ -111,6 +111,28 @@ Returns a Promise which will resolve with the new URI.
 | ---- | ---------------------- | -------- | ---------------------------------------------------------- |
 | tag  | string                 | Yes      | See above.                                                 |
 | type | enum('photo', 'video') | No       | Overrides automatic detection based on the file extension. |
+| album | string                | No       | The album to save to |
+
+---
+### `getAlbums()`
+
+```javascript
+CameraRoll.getAlbums(params);
+```
+Returns a Promise with a list of albums
+
+**Parameters:**
+
+* `assetType` : {string} : Specifies filter on asset type. Valid values are:
+  * `All` // default
+  * `Videos`
+  * `Photos`
+
+**Returns:**
+
+Array of `Album` object
+  * title: {string}
+  * count: {number}
 
 ---
 
@@ -129,7 +151,7 @@ Returns a Promise with photo identifier objects from the local camera roll of th
 | params | object | Yes      | Expects a params with the shape described below. |
 
 * `first` : {number} : The number of photos wanted in reverse order of the photo application (i.e. most recent first for SavedPhotos). Required.
-* `after` : {string} : A cursor that matches `page_info { end_cursor }` returned from a previous call to `getPhotos`.
+* `after` : {string} : A cursor that matches `page_info { end_cursor }` returned from a previous call to `getPhotos`. Note that using this will reduce performance slightly on iOS. An alternative is just using the `fromTime` and `toTime` filters, which have no such impact.
 * `groupTypes` : {string} : Specifies which group types to filter the results to. Valid values are:
   * `Album`
   * `All` // default
@@ -143,7 +165,13 @@ Returns a Promise with photo identifier objects from the local camera roll of th
   * `All`
   * `Videos`
   * `Photos` // default
-* `mimeTypes` : {Array} : Filter by mimetype (e.g. image/jpeg).
+* `mimeTypes` : {Array} : Filter by mimetype (e.g. image/jpeg). Note that using this will reduce performance slightly on iOS.
+* `fromTime` : {number} : Filter by creation time with a timestamp in milliseconds. This time is exclusive, so we'll select all photos with `timestamp > fromTime`.
+* `toTime` : {number} : Filter by creation time with a timestamp in milliseconds. This time is inclusive, so we'll select all photos with `timestamp <= toTime`.
+* `include` : {Array} : Whether to include some fields that are slower to fetch
+  * `filename` : Ensures `image.filename` is available in each node. This has a large performance impact on iOS.
+  * `fileSize` : Ensures `image.fileSize` is available in each node. This has a large performance impact on iOS.
+  * `location`: Ensures `location` is available in each node. This has a large performance impact on Android.
 
 Returns a Promise which when resolved will be of the following shape:
 
@@ -153,13 +181,14 @@ Returns a Promise which when resolved will be of the following shape:
     * `group_name`: {string}
     * `image`: {object} : An object with the following shape:
       * `uri`: {string}
-      * `filename`: {string}
+      * `filename`: {string | null} : Only set if the `include` parameter contains `filename`.
       * `height`: {number}
       * `width`: {number}
+      * `fileSize`: {number | null} : Only set if the `include` parameter contains `fileSize`.
       * `isStored`: {boolean}
       * `playableDuration`: {number}
-    * `timestamp`: {number}
-    * `location`: {object} : An object with the following shape:
+    * `timestamp`: {number} : Timestamp in seconds.
+    * `location`: {object | null} : Only set if the `include` parameter contains `location`. An object with the following shape:
       * `latitude`: {number}
       * `longitude`: {number}
       * `altitude`: {number}
@@ -208,8 +237,10 @@ render() {
    </View>
  );
 }
-```  
+```
+
 ---
+
 ### `deletePhotos()`
 
 ```javascript
@@ -229,3 +260,11 @@ Returns a Promise which will resolve when the deletion request is completed, or 
 | Name | Type                   | Required | Description                                                |
 | ---- | ---------------------- | -------- | ---------------------------------------------------------- |
 | uri  | string                 | Yes      | See above.                                                 |
+
+
+[circle-ci-badge]:https://img.shields.io/circleci/project/github/react-native-community/react-native-cameraroll/master.svg?style=flat-square
+[circle-ci]:https://circleci.com/gh/react-native-community/workflows/react-native-cameraroll/tree/master
+[supported-os-badge]:https://img.shields.io/badge/platforms-android%20|%20ios-lightgrey.svg?style=flat-square
+[license-badge]:https://img.shields.io/npm/l/@react-native-community/cameraroll.svg?style=flat-square
+[lean-core-badge]: https://img.shields.io/badge/Lean%20Core-Extracted-brightgreen.svg?style=flat-square
+[lean-core-issue]: https://github.com/facebook/react-native/issues/23313
