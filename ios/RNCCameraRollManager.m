@@ -236,7 +236,19 @@ RCT_EXPORT_METHOD(getPhotos:(NSDictionary *)params
   
   // Predicate for fetching assets within a collection
   PHFetchOptions *const assetFetchOptions = [RCTConvert PHFetchOptionsFromMediaType:mediaType];
-  assetFetchOptions.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:NO]];
+  NSMutableArray* sortDescArr = [[NSMutableArray alloc]init];
+   if ( [sortBy  isEqual: @"creation_date"]) {
+     [sortDescArr addObject:[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:NO]];
+
+   }
+   else if ([sortBy  isEqual: @"modification_date"]) {
+        [sortDescArr addObject:[NSSortDescriptor sortDescriptorWithKey:@"modificationDate" ascending:NO]];
+   }
+  
+   else { // default
+       [sortDescArr addObject:[NSSortDescriptor sortDescriptorWithKey:@"modificationDate" ascending:NO]];
+   }
+  assetFetchOptions.sortDescriptors = sortDescArr;
   
   BOOL __block foundAfter = NO;
   BOOL __block hasNextPage = NO;
