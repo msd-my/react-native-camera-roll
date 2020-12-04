@@ -245,7 +245,6 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void getPhotos(final ReadableMap params, final Promise promise) {
     int first = params.getInt("first");
-    String sortBy = params.hasKey("sort_by") ? params.getString("sort_by") : null;
     String after = params.hasKey("after") ? params.getString("after") : null;
     String groupName = params.hasKey("groupName") ? params.getString("groupName") : null;
     String assetType = params.hasKey("assetType") ? params.getString("assetType") : ASSET_TYPE_PHOTOS;
@@ -259,7 +258,6 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
     new GetMediaTask(
             getReactApplicationContext(),
             first,
-            sortBy,
             after,
             groupName,
             mimeTypes,
@@ -279,7 +277,6 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
     private final @Nullable ReadableArray mMimeTypes;
     private final Promise mPromise;
     private final String mAssetType;
-    private final String msortBy;
     private final long mFromTime;
     private final long mToTime;
     private final Set<String> mInclude;
@@ -288,7 +285,6 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
             ReactContext context,
             int first,
             @Nullable String after,
-            @Nullable String sortBy,
             @Nullable String groupName,
             @Nullable ReadableArray mimeTypes,
             String assetType,
@@ -299,7 +295,6 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
       super(context);
       mContext = context;
       mFirst = first;
-      msortBy = sortBy;
       mAfter = after;
       mGroupName = groupName;
       mMimeTypes = mimeTypes;
@@ -385,18 +380,12 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
           limit = "limit=" + mAfter + "," + (mFirst + 1);
         }
 
-        String sort = Images.Media.DATE_ADDED + " DESC, " + Images.Media.DATE_MODIFIED + " DESC";
-        if (msortBy.equals("creation_date")) {
-          sort = Images.Media.DATE_TAKEN + " DESC";
-        }
-
         Cursor media = resolver.query(
                 MediaStore.Files.getContentUri("external").buildUpon().encodedQuery(limit).build(),
                 PROJECTION,
                 selection.toString(),
                 selectionArgs.toArray(new String[selectionArgs.size()]),
-                sort);
-
+                Images.Media.DATE_ADDED + " DESC, " + Images.Media.DATE_MODIFIED + " DESC");
         if (media == null) {
           mPromise.reject(ERROR_UNABLE_TO_LOAD, "Could not get media");
         } else {
