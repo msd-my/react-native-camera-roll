@@ -386,7 +386,7 @@ public class CameraRollModule extends ReactContextBaseJavaModule {
 
         Cursor media;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
 //          String array = new String[]{ Images.Media.DATE_ADDED, Images.Media.DATE_MODIFIED }
           String sort =  Images.Media.DATE_MODIFIED;
           int order = ContentResolver.QUERY_SORT_DIRECTION_DESCENDING;
