@@ -13,7 +13,7 @@ node_modules/react-native/bots/dangerfile.js
 node_modules/react-native/\.buckd/
 
 ; Ignore unexpected extra "@providesModule"
-.*/node_modules/.*/node_modules/fbjs/.*
+.*/node_modules/.*
 
 ; Ignore extra CameraRoll
 .*/node_modules/react-native/Libraries/CameraRoll/CameraRoll.js
@@ -33,7 +33,7 @@ node_modules/react-native/\.buckd/
 .*/node_modules/config-chain/test/*.
 
 ; These should not be required directly
-; require from fbjs/lib instead: require('fbjs/lib/invariant')
+; require from fbjs/lib instead: require('invariant')
 .*/node_modules/invariant/.*
 .*/node_modules/warning/.*
 
